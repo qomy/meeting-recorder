@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ถอดเสียง + วิเคราะห์กรรมาธิการ</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a1a;padding:1rem 1.5rem;max-width:980px;margin:0 auto}
+h1{font-size:16px;font-weight:500;margin-bottom:.75rem;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.badge{font-size:11px;padding:3px 10px;border-radius:20px;font-weight:500;background:#e5e5e0;color:#555;border:1px solid #d4d4cc}
+.badge.live{background:#fee2e2;color:#991b1b;border-color:#fca5a5;animation:blink 1.4s infinite}
+.badge.paused{background:#fef9c3;color:#854d0e;border-color:#fde047}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+.layout{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+@media(max-width:680px){.layout{grid-template-columns:1fr}}
+.panel{background:#fff;border:1px solid #e5e5e0;border-radius:12px;padding:.9rem 1.1rem;margin-bottom:.75rem}
+.panel-label{font-size:11px;color:#888;margin-bottom:.45rem;text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;justify-content:space-between}
+.transcript-box{min-height:180px;max-height:320px;overflow-y:auto;font-size:14px;line-height:1.85;color:#1a1a1a;white-space:pre-wrap;word-break:break-word}
+.interim{color:#bbb;font-style:italic}
+.controls{display:flex;gap:6px;margin-bottom:.6rem;flex-wrap:wrap}
+button.ctrl{display:flex;align-items:center;gap:6px;padding:8px 14px;font-size:13px;font-weight:500;border-radius:8px;border:1px solid #ccc;background:#fff;color:#1a1a1a;cursor:pointer;transition:all .15s;white-space:nowrap}
+button.ctrl:hover{background:#f0f0eb}
+button.ctrl:active{transform:scale(.98)}
+button.ctrl.primary{background:#1d4ed8;color:#fff;border-color:#1d4ed8}
+button.ctrl.primary:hover{background:#1e40af}
+button.ctrl.danger{background:#dc2626;color:#fff;border-color:#dc2626}
+button.ctrl.go{background:#059669;color:#fff;border-color:#059669;font-size:14px;padding:9px 18px}
+button.ctrl.go:hover{background:#047857}
+button.ctrl.purple{background:#7c3aed;color:#fff;border-color:#7c3aed}
+button.ctrl.purple:hover{background:#6d28d9}
+button.ctrl:disabled{opacity:.38;cursor:not-allowed;transform:none}
+.stat-row{display:flex;gap:7px;margin-bottom:.65rem}
+.stat{flex:1;background:#f5f5f0;border-radius:8px;padding:.45rem .7rem;text-align:center}
+.stat-num{font-size:18px;font-weight:600;color:#1a1a1a}
+.stat-lbl{font-size:10px;color:#888;margin-top:1px}
+.err{font-size:12px;color:#dc2626;padding:5px 10px;background:#fef2f2;border-radius:7px;margin-top:.35rem;display:flex;align-items:center;gap:6px}
+.log-box{max-height:75px;overflow-y:auto;border-top:1px solid #f0f0eb;margin-top:.5rem;padding-top:.4rem}
+.log-entry{display:flex;gap:8px;font-size:11px;padding:2px 0;border-bottom:1px solid #f5f5f0}
+.log-time{color:#bbb;min-width:52px;flex-shrink:0}
+.log-text{color:#555;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.full-text-area{width:100%;font-size:13px;padding:.55rem;border:1px solid #ccc;border-radius:8px;background:#f9f9f7;color:#1a1a1a;resize:vertical;min-height:70px;font-family:inherit;line-height:1.6}
+.full-text-area:focus{outline:none;border-color:#2563eb}
+.prog-bar{height:3px;background:#e5e5e0;border-radius:2px;margin:.4rem 0;overflow:hidden}
+.prog-fill{height:100%;background:#059669;border-radius:2px;transition:width .3s;width:0}
+.result-box{font-size:13px;line-height:1.8;color:#1a1a1a;min-height:140px}
+.s-head{font-size:11px;font-weight:600;color:#555;margin:.65rem 0 .2rem;display:flex;align-items:center;gap:5px;text-transform:uppercase;letter-spacing:.03em}
+.i-issue{padding:5px 10px;border-left:2px solid #d97706;background:#fffbeb;border-radius:0 7px 7px 0;margin:.2rem 0;font-size:13px;color:#92400e}
+.i-q{padding:5px 10px;border-left:2px solid #2563eb;background:#eff6ff;border-radius:0 7px 7px 0;margin:.2rem 0;font-size:13px;color:#1e40af}
+.i-sum{padding:5px 10px;border-left:2px solid #059669;background:#ecfdf5;border-radius:0 7px 7px 0;margin:.2rem 0;font-size:13px;color:#065f46}
+.i-ref{padding:5px 10px;border-left:2px solid #7c3aed;background:#f5f3ff;border-radius:0 7px 7px 0;margin:.2rem 0;font-size:13px;color:#5b21b6}
+.sum-panel{border:1px solid #c4b5fd;background:#fafafe}
+.sum-ta{width:100%;font-size:13px;padding:.55rem;border:1px solid #ddd6fe;border-radius:8px;background:#fefeff;color:#1a1a1a;resize:vertical;min-height:180px;font-family:inherit;line-height:1.75}
+
+/* BIG ACTION BUTTON */
+.action-row{display:flex;gap:8px;margin-bottom:.75rem;flex-wrap:wrap}
+.big-btn{flex:1;min-width:180px;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px 18px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;transition:all .15s}
+.big-btn:active{transform:scale(.98)}
+.big-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.big-btn.analyze{background:#059669;color:#fff}
+.big-btn.analyze:hover:not(:disabled){background:#047857}
+.big-btn.summarize{background:#7c3aed;color:#fff}
+.big-btn.summarize:hover:not(:disabled){background:#6d28d9}
+
+/* PASTE PANEL */
+.paste-panel{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:.75rem 1rem;margin-top:.6rem}
+.paste-ta{width:100%;font-size:13px;padding:.5rem;border:1px solid #86efac;border-radius:8px;background:#fff;color:#1a1a1a;resize:vertical;min-height:80px;font-family:inherit;line-height:1.6}
+.paste-ta:focus{outline:none;border-color:#059669}
+.apply-btn{display:inline-flex;align-items:center;gap:5px;margin-top:.4rem;padding:6px 14px;background:#059669;color:#fff;border:none;border-radius:7px;font-size:13px;font-weight:500;cursor:pointer}
+.apply-btn:hover{background:#047857}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(20px);background:#1a1a1a;color:#fff;padding:.6rem 1.2rem;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all .3s;pointer-events:none;z-index:999;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* QUESTION SUMMARY BOX */
+.q-panel{background:#fff;border:1.5px solid #bfdbfe;border-radius:12px;padding:.9rem 1.1rem;margin-bottom:.75rem}
+.q-label{font-size:11px;color:#1e40af;margin-bottom:.45rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600;display:flex;align-items:center;justify-content:space-between}
+.q-list{min-height:60px;max-height:220px;overflow-y:auto}
+.q-item{display:flex;align-items:flex-start;gap:8px;padding:6px 10px;background:#eff6ff;border-left:3px solid #2563eb;border-radius:0 8px 8px 0;margin:.3rem 0;font-size:13px;color:#1e40af;line-height:1.6}
+.q-num{font-size:11px;font-weight:700;color:#2563eb;min-width:18px;margin-top:1px}
+.q-empty{color:#93c5fd;font-size:13px;font-style:italic;padding:.25rem 0}
+.q-actions{display:flex;gap:6px;margin-top:.5rem;flex-wrap:wrap}
+.q-btn{display:inline-flex;align-items:center;gap:5px;padding:5px 12px;border-radius:7px;font-size:12px;font-weight:500;border:1px solid #bfdbfe;background:#eff6ff;color:#1e40af;cursor:pointer;transition:all .15s}
+.q-btn:hover{background:#dbeafe}
+.q-btn.send{background:#2563eb;color:#fff;border-color:#2563eb}
+.q-btn.send:hover{background:#1d4ed8}
+.q-btn:disabled{opacity:.4;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<h1>
+  <i class="ti ti-microphone" style="font-size:18px;color:#555"></i>
+  ถอดเสียง Realtime + วิเคราะห์กรรมาธิการ
+  <span class="badge" id="status-badge">พร้อมใช้งาน</span>
+</h1>
+
+<div class="stat-row">
+  <div class="stat"><div class="stat-num" id="word-count">0</div><div class="stat-lbl">คำที่ถอด</div></div>
+  <div class="stat"><div class="stat-num" id="session-time">0:00</div><div class="stat-lbl">เวลาบันทึก</div></div>
+  <div class="stat"><div class="stat-num" id="seg-count">0</div><div class="stat-lbl">ช่วงที่บันทึก</div></div>
+  <div class="stat"><div class="stat-num" id="analyze-count">0</div><div class="stat-lbl">ครั้งวิเคราะห์</div></div>
+</div>
+
+<div class="controls">
+  <button class="ctrl primary" id="btn-mic" onclick="requestMicAndStart()">
+    <i class="ti ti-microphone"></i> เริ่มบันทึก
+  </button>
+  <button class="ctrl" id="btn-pause" onclick="pauseMic()" disabled>
+    <i class="ti ti-player-pause"></i> หยุดชั่วคราว
+  </button>
+  <button class="ctrl" onclick="clearAll()">
+    <i class="ti ti-trash"></i> ล้าง
+  </button>
+  <button class="ctrl" id="btn-copy" onclick="copyTranscript()">
+    <i class="ti ti-copy"></i> คัดลอกข้อความ
+  </button>
+</div>
+
+<!-- BIG ACTION BUTTONS -->
+<div class="action-row">
+  <button class="big-btn analyze" id="btn-analyze" onclick="sendAnalyze()" disabled>
+    <i class="ti ti-brain" style="font-size:18px"></i>
+    วิเคราะห์ประเด็น → เปิด Claude.ai อัตโนมัติ
+  </button>
+  <button class="big-btn summarize" id="btn-sum" onclick="sendSummarize()" disabled>
+    <i class="ti ti-notes" style="font-size:18px"></i>
+    สรุปภาพรวม → เปิด Claude.ai อัตโนมัติ
+  </button>
+</div>
+
+<div class="prog-bar"><div class="prog-fill" id="prog"></div></div>
+
+<div class="layout">
+  <div>
+    <div class="panel">
+      <div class="panel-label">
+        <span>ข้อความที่ถอดได้ (Realtime)</span>
+        <span id="char-count" style="color:#aaa;font-size:11px">0 ตัวอักษร</span>
+      </div>
+      <div class="transcript-box" id="transcript">
+        <span style="color:#aaa;font-size:13px">กด "เริ่มบันทึก" แล้วพูด...</span>
+      </div>
+      <div id="error-area"></div>
+      <div class="log-box" id="log-box" style="display:none"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-label">พิมพ์/วางข้อความเพิ่ม</div>
+      <textarea class="full-text-area" id="manual-input" placeholder="วางคำถามกรรมาธิการหรือข้อมูลเพิ่มเติม..."></textarea>
+      <div style="display:flex;gap:6px;margin-top:.4rem">
+        <button class="ctrl" onclick="addManualText()"><i class="ti ti-plus"></i> เพิ่มข้อความ</button>
+        <button class="ctrl" onclick="document.getElementById('manual-input').value=''"><i class="ti ti-x"></i> ล้าง</button>
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel" style="min-height:220px">
+      <div class="panel-label">
+        <span>ผลการวิเคราะห์</span>
+        <span id="analyze-status" style="font-size:11px;color:#aaa"></span>
+      </div>
+      <div class="result-box" id="result-out">
+        <span style="color:#aaa;font-size:13px">
+          กด <strong style="color:#059669">"วิเคราะห์ประเด็น"</strong> ด้านบน<br>
+          Claude.ai จะเปิดพร้อม prompt อัตโนมัติ<br>
+          แล้วนำผลมาวางในช่องด้านล่าง
+        </span>
+      </div>
+      <div class="paste-panel">
+        <div style="font-size:11px;color:#166534;margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.04em;font-weight:600">
+          <i class="ti ti-clipboard" style="font-size:13px"></i> วางผลจาก Claude.ai ที่นี่
+        </div>
+        <textarea class="paste-ta" id="paste-input" placeholder="คัดลอกผลจาก Claude.ai แล้ววางที่นี่..."></textarea>
+        <button class="apply-btn" onclick="applyResult()">
+          <i class="ti ti-layout-board"></i> แสดงผลวิเคราะห์
+        </button>
+      </div>
+    </div>
+
+    <div class="panel sum-panel">
+      <div class="panel-label">
+        <span style="color:#6d28d9">สรุปภาพรวมการประชุม</span>
+        <span id="sum-status" style="font-size:11px;color:#aaa"></span>
+      </div>
+      <textarea class="sum-ta" id="sum-out" placeholder="กด 'สรุปภาพรวม' ด้านบน → Claude.ai เปิด → คัดลอกผลมาวางที่นี่..."></textarea>
+    </div>
+  </div>
+</div>
+
+
+<!-- QUESTION SUMMARY BOX -->
+<div class="q-panel" id="q-panel">
+  <div class="q-label">
+    <span><i class="ti ti-help-circle" style="font-size:13px"></i> คำถาม/ประเด็นที่พบจากข้อความ (ทุกรูปแบบ)</span>
+    <span id="q-count" style="font-size:11px;color:#3b82f6;font-weight:400"></span>
+  </div>
+  <div class="q-list" id="q-list">
+    <div class="q-empty" id="q-empty">กด "สกัดประเด็น → Claude.ai" เพื่อดึงคำถาม/ประเด็นทุกรูปแบบจากข้อความ</div>
+  </div>
+  <div class="q-actions">
+    <button class="q-btn send" id="btn-extract-q" onclick="extractQuestions()" disabled>
+      <i class="ti ti-sparkles"></i> สกัดประเด็น → Claude.ai
+    </button>
+    <button class="q-btn" onclick="pasteQuestions()" id="btn-paste-q">
+      <i class="ti ti-clipboard"></i> วางผลที่นี่
+    </button>
+    <button class="q-btn" id="btn-copy-q" onclick="copyQuestions()" style="display:none">
+      <i class="ti ti-copy"></i> คัดลอกคำถาม
+    </button>
+    <button class="q-btn" onclick="clearQuestions()" style="color:#888;border-color:#e5e5e0;background:#f5f5f0">
+      <i class="ti ti-trash"></i> ล้าง
+    </button>
+  </div>
+  <div id="q-paste-area" style="display:none;margin-top:.5rem">
+    <textarea class="paste-ta" id="q-paste-input"
+      placeholder="วางผลจาก Claude.ai ที่นี่..." 
+      style="border-color:#bfdbfe;min-height:80px;width:100%;font-size:13px;padding:.5rem;border-radius:8px;font-family:inherit;line-height:1.6;resize:vertical"></textarea>
+    <div style="display:flex;gap:6px;margin-top:.4rem">
+      <button class="q-btn send" onclick="applyQuestions()"><i class="ti ti-check"></i> แสดงคำถาม</button>
+      <button class="q-btn" onclick="document.getElementById('q-paste-area').style.display='none'">ยกเลิก</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== KNOWLEDGE BASE ===== */
+const KB = `คุณเป็นผู้เชี่ยวชาญด้านวิศวกรรมโครงสร้างพื้นฐานและนโยบายสาธารณะ ที่ปรึกษากรรมาธิการรัฐสภาไทยด้านคมนาคม
+
+=== ฐานข้อมูลงบประมาณ กรมทางหลวง ปี 2569 (เล่มฟ้า) ===
+งบรวม: 108,000 ล้านบาท
+• ก่อสร้างโครงข่ายทางหลวงแผ่นดิน: 55,110 ล้าน (ก้อนใหญ่สุด — ประเด็นฮั้วราคา)
+• บำรุงรักษาโครงข่ายทางหลวงและสะพาน: 32,508 ล้าน
+• เพิ่มประสิทธิภาพและยกระดับความปลอดภัย: 8,355 ล้าน
+• พัฒนาทางหลวงเพื่อสนับสนุนโลจิสติกส์: 9,758 ล้าน
+• งบบุคลากร (ข้าราชการ 8,640 + พนักงานราชการ 5,442): 5,001 ล้าน
+• พัฒนาจุดจอดพักรถและสถานีตรวจน้ำหนัก: 2,160 ล้าน
+• ค่า K (ขอ 2,454 ล้าน ไม่ได้รับ): 0
+
+=== ประเด็นข้อสังเกตกรรมาธิการ ปี 2568-2569 ===
+1. ฮั้วประมูล >600 ล้าน — ประหยัด <0.5% vs <600 ล้านประหยัด >15%
+2. จ้างช่วง (Nominee) ไม่ทำงานเอง ทิ้งงาน
+3. ไฟส่องสว่างไม่ทั่วถึง — ยังไม่มีแผน Solar Cell
+4. ถนนขวางการระบายน้ำ — อุทกภัย
+5. มติ ครม. 13 พ.ย. 2550 เป็นอุปสรรคในอุทยานฯ
+6. กฎหมายไม่รองรับรถเครนอุตสาหกรรม
+7. เล่มขาวคาดแดงไม่สะท้อนเนื้องานจริง
+8. ไม่มีตัวชี้วัดผู้เสียชีวิตบนถนน
+9. รอยต่อทางหลวง-ทางหลวงชนบท 5-10 ม. ไม่มีหน่วยรับผิดชอบ
+10. ส่วยทางหลวง — ไม่มีแนวทางแก้ด้วยเทคโนโลยี
+11. โครงการ >1,000 ล้านที่เกี่ยวข้องกันควรเข้าข้อตกลงคุณธรรม
+12. Weigh in Motion ยังไม่ครอบคลุม
+13. ยังไม่เชื่อมต่อ Traffy Fondue
+14. ระบบระบายน้ำข้างทางไม่ได้มาตรฐาน (ควรขยาย 9-12 ม.)
+15. การถ่ายโอนภารกิจให้ อปท. ยังไม่เป็นระบบ
+
+=== มาตรฐานสากล ===
+• WHO 2023: ไทยอัตราเสียชีวิตบนถนน 32.7 ต่อแสน อันดับ 9 โลก เป้าหมาย UN ลด 50% ภายในปี 2030
+• World Bank: โครงการแข่งขันต่ำ (<3 ราย) มักสูงกว่าตลาด 15-30%
+• FHWA (US): ระบบ WIM ลดน้ำหนักเกิน 60-80% ยืดอายุถนน 30%
+• IEA 2023: Solar street lighting TCO ต่ำกว่าระบบปกติ 40-60%
+• AASHTO: Preventive Maintenance คุ้มค่ากว่าซ่อมฉุกเฉิน 4-7 เท่า
+• ADB: จ้างช่วงเกิน 40% ของสัญญา = ความเสี่ยงสูง
+• OECD: Independent Observer ในโครงการ >1,000 ล้านเพิ่มความโปร่งใส`;
+
+const ANALYZE_PROMPT = (text) => KB + `
+
+วิเคราะห์ข้อความจากการประชุมกรรมาธิการด้านล่าง แล้วตอบในรูปแบบนี้เสมอ (ภาษาไทย กระชับ):
+
+## ประเด็นปัญหาที่พบ
+1. [ปัญหา + มูลค่างบที่เกี่ยวข้อง]
+2. ...
+
+## คำถามเพื่อตรวจสอบ
+1. [คำถามพร้อมตัวเลขอ้างอิง]?
+2. ...
+
+## ข้อมูลอ้างอิงระดับโลก
+- [มาตรฐานสากลที่เกี่ยวข้อง]
+
+## สรุปภาพรวม
+[2-3 ประโยค เชื่อมโยงงบประมาณและมาตรฐานสากล]
+
+=== ข้อความจากการประชุม ===
+${text}`;
+
+const SUM_PROMPT = (text) => KB + `
+
+สรุปภาพรวมการประชุมกรรมาธิการ โดยอ้างอิงฐานข้อมูลและมาตรฐานสากล ไม่เกิน 400 คำ
+
+สรุปเป็น 5 หัวข้อ:
+1. ประเด็นหลักที่พูดถึงในการประชุม
+2. มูลค่างบประมาณที่เกี่ยวข้อง
+3. ความเสี่ยง/ข้อกังวลสำคัญ
+4. ข้อเสนอแนะจากกรรมาธิการ
+5. เปรียบเทียบกับมาตรฐานสากล (WHO/World Bank/FHWA/AASHTO)
+
+=== ข้อความจากการประชุม ===
+${text}`;
+
+/* ===== STATE ===== */
+let recognition=null,isRecording=false,isPaused=false,micGranted=false;
+let finalText='',segmentLog=[],sessionStart=null,timerInterval=null,analyzeCount=0;
+
+/* ===== SEND TO CLAUDE.AI via URL ===== */
+function sendAnalyze() {
+  const manual = document.getElementById('manual-input').value.trim();
+  const combined = (finalText + (manual?'\n'+manual:'')).trim();
+  if (!combined) { showError('ยังไม่มีข้อความ'); return; }
+  const prompt = ANALYZE_PROMPT(combined);
+  openClaudeWithPrompt(prompt);
+  analyzeCount++;
+  document.getElementById('analyze-count').textContent = analyzeCount;
+}
+
+function sendSummarize() {
+  const text = finalText.trim();
+  if (!text) { showError('ยังไม่มีข้อความ'); return; }
+  openClaudeWithPrompt(SUM_PROMPT(text));
+}
+
+function openClaudeWithPrompt(prompt) {
+  // Copy to clipboard first
+  navigator.clipboard.writeText(prompt).then(() => {
+    toast('✓ คัดลอก prompt แล้ว — Claude.ai กำลังเปิด...');
+  }).catch(()=>{});
+
+  // Open Claude.ai with prompt encoded in URL
+  // claude.ai supports ?q= parameter to pre-fill the message
+  const encoded = encodeURIComponent(prompt);
+  const url = 'https://claude.ai/new?q=' + encoded;
+  window.open(url, '_blank');
+
+  setProgress(80);
+  setTimeout(()=>setProgress(0), 1500);
+}
+
+/* ===== APPLY PASTE ===== */
+function applyResult() {
+  const txt = document.getElementById('paste-input').value.trim();
+  if (!txt) return;
+  renderResult(txt);
+  document.getElementById('analyze-status').textContent = 'อัปเดต '+new Date().toLocaleTimeString('th-TH');
+  document.getElementById('paste-input').value = '';
+  toast('✓ แสดงผลวิเคราะห์แล้ว');
+}
+
+/* ===== RENDER ===== */
+function renderResult(md) {
+  const out = document.getElementById('result-out');
+  let html='', sec='';
+  for (const line of md.split('\n')) {
+    const t=line.trim(); if(!t) continue;
+    if (t.startsWith('## ประเด็นปัญหา'))    {sec='issue';html+=`<div class="s-head"><i class="ti ti-alert-triangle" style="color:#d97706"></i>${esc(t.replace(/^##\s*/,''))}</div>`;}
+    else if(t.startsWith('## คำถาม'))        {sec='q';   html+=`<div class="s-head"><i class="ti ti-help-circle" style="color:#2563eb"></i>${esc(t.replace(/^##\s*/,''))}</div>`;}
+    else if(t.startsWith('## ข้อมูลอ้างอิง')){sec='ref'; html+=`<div class="s-head"><i class="ti ti-world" style="color:#7c3aed"></i>${esc(t.replace(/^##\s*/,''))}</div>`;}
+    else if(t.startsWith('## สรุป'))         {sec='sum'; html+=`<div class="s-head"><i class="ti ti-list-check" style="color:#059669"></i>${esc(t.replace(/^##\s*/,''))}</div>`;}
+    else if(sec==='issue'&&/^\d+\./.test(t)) html+=`<div class="i-issue">${esc(t)}</div>`;
+    else if(sec==='q'    &&/^\d+\./.test(t)) html+=`<div class="i-q">${esc(t)}</div>`;
+    else if(sec==='ref'  &&/^[•\-]/.test(t)) html+=`<div class="i-ref">${esc(t.replace(/^[•\-]\s*/,''))}</div>`;
+    else if(sec==='sum') html+=`<div class="i-sum">${esc(t)}</div>`;
+    else html+=`<p style="font-size:13px;margin:.15rem 0;color:#555">${esc(t)}</p>`;
+  }
+  out.innerHTML = html||'<span style="color:#aaa">ไม่พบผลการวิเคราะห์</span>';
+}
+
+/* ===== MIC ===== */
+async function requestMicAndStart() {
+  if (isRecording&&!isPaused){stopMic();return;}
+  if (isPaused){resumeMic();return;}
+  if (!micGranted) {
+    try {
+      const s=await navigator.mediaDevices.getUserMedia({audio:true});
+      s.getTracks().forEach(t=>t.stop()); micGranted=true; clearError();
+    } catch(err) {
+      showError(err.name==='NotAllowedError'?'กรุณาอนุญาตไมโครโฟนในแถบ URL':'ไม่พบไมโครโฟน: '+err.message);
+      return;
+    }
+  }
+  startRec();
+}
+
+function startRec() {
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showError('กรุณาใช้ Chrome หรือ Edge');return;}
+  isPaused=false;
+  recognition=new SR();
+  recognition.lang='th-TH';
+  recognition.continuous=true;
+  recognition.interimResults=true;
+
+  recognition.onstart=()=>{
+    isRecording=true;
+    if(!sessionStart) sessionStart=Date.now();
+    if(!timerInterval) timerInterval=setInterval(tick,1000);
+    document.getElementById('btn-mic').className='ctrl danger';
+    document.getElementById('btn-mic').innerHTML='<i class="ti ti-player-stop"></i> หยุดบันทึก';
+    document.getElementById('btn-pause').disabled=false;
+    document.getElementById('status-badge').className='badge live';
+    document.getElementById('status-badge').textContent='กำลังบันทึก';
+    clearError();
+  };
+
+  recognition.onresult=(e)=>{
+    let interim='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      const t=e.results[i][0].transcript;
+      if(e.results[i].isFinal){finalText+=t+' ';addLog(t);}
+      else interim=t;
+    }
+    renderTx(interim); updateStats(); enableBtns();
+  };
+
+  recognition.onerror=(e)=>{
+    if(e.error==='no-speech'||e.error==='aborted') return;
+    if(e.error==='network'){showError('network error — ต้องใช้ผ่าน localhost:8080');stopMic();return;}
+    if(e.error==='not-allowed'){micGranted=false;showError('ไมโครโฟนถูกบล็อก — อนุญาตในแถบ URL');stopMic();return;}
+    showError('error: '+e.error);
+  };
+
+  recognition.onend=()=>{
+    if(isRecording&&!isPaused){
+      setTimeout(()=>{if(isRecording&&!isPaused){try{recognition.start();}catch(_){}}},300);
+    }
+  };
+
+  try{recognition.start();}catch(ex){showError('ไม่สามารถเริ่ม: '+ex.message);}
+}
+
+function stopMic(){
+  isRecording=false;isPaused=false;
+  if(recognition){recognition.onend=null;recognition.onerror=null;try{recognition.stop();}catch(_){}recognition=null;}
+  clearInterval(timerInterval);timerInterval=null;
+  document.getElementById('btn-mic').className='ctrl primary';
+  document.getElementById('btn-mic').innerHTML='<i class="ti ti-microphone"></i> เริ่มบันทึก';
+  document.getElementById('btn-pause').disabled=true;
+  document.getElementById('btn-pause').innerHTML='<i class="ti ti-player-pause"></i> หยุดชั่วคราว';
+  document.getElementById('status-badge').className='badge';
+  document.getElementById('status-badge').textContent='หยุดแล้ว';
+  renderTx('');
+}
+
+function pauseMic(){
+  if(!isRecording||isPaused) return;
+  isPaused=true;
+  if(recognition){recognition.onend=null;try{recognition.stop();}catch(_){}}
+  clearInterval(timerInterval);
+  document.getElementById('btn-mic').className='ctrl primary';
+  document.getElementById('btn-mic').innerHTML='<i class="ti ti-microphone"></i> เริ่มบันทึก';
+  document.getElementById('btn-pause').innerHTML='<i class="ti ti-player-play"></i> บันทึกต่อ';
+  document.getElementById('status-badge').className='badge paused';
+  document.getElementById('status-badge').textContent='หยุดชั่วคราว';
+}
+
+function resumeMic(){
+  isPaused=false;
+  document.getElementById('btn-pause').innerHTML='<i class="ti ti-player-pause"></i> หยุดชั่วคราว';
+  if(!timerInterval) timerInterval=setInterval(tick,1000);
+  startRec();
+}
+
+function enableBtns(){
+  document.getElementById('btn-analyze').disabled=false;
+  document.getElementById('btn-sum').disabled=false;
+  document.getElementById('btn-extract-q').disabled=false;
+}
+
+function tick(){
+  if(!sessionStart) return;
+  const s=Math.floor((Date.now()-sessionStart)/1000);
+  document.getElementById('session-time').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+}
+
+function addLog(text){
+  const t=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  segmentLog.push({time:t,text:text.trim()});
+  document.getElementById('seg-count').textContent=segmentLog.length;
+  const lb=document.getElementById('log-box');
+  lb.style.display='block';
+  lb.innerHTML=segmentLog.slice(-5).map(s=>`<div class="log-entry"><span class="log-time">${s.time}</span><span class="log-text">${esc(s.text)}</span></div>`).join('');
+  lb.scrollTop=lb.scrollHeight;
+}
+
+function renderTx(interim){
+  const box=document.getElementById('transcript');
+  if(!finalText&&!interim){box.innerHTML='<span style="color:#aaa;font-size:13px">กด "เริ่มบันทึก" แล้วพูด...</span>';return;}
+  box.innerHTML=(finalText?esc(finalText):'')+(interim?'<span class="interim"> '+esc(interim)+'</span>':'');
+  box.scrollTop=box.scrollHeight;
+}
+
+function updateStats(){
+  const w=finalText.trim()?finalText.trim().split(/\s+/).length:0;
+  document.getElementById('word-count').textContent=w;
+  document.getElementById('char-count').textContent=finalText.length+' ตัวอักษร';
+}
+
+function addManualText(){
+  const inp=document.getElementById('manual-input'),val=inp.value.trim();
+  if(!val) return;
+  finalText+=(finalText?'\n':'')+val;
+  renderTx('');updateStats();enableBtns();
+  document.getElementById('btn-extract-q').disabled=false;
+  document.getElementById('status-badge').textContent='มีข้อความ';
+}
+
+function clearAll(){
+  finalText='';segmentLog=[];
+  stopMic();renderTx('');updateStats();
+  sessionStart=null;
+  document.getElementById('session-time').textContent='0:00';
+  document.getElementById('seg-count').textContent='0';
+  document.getElementById('analyze-count').textContent='0';
+  document.getElementById('result-out').innerHTML='<span style="color:#aaa;font-size:13px">กด "วิเคราะห์ประเด็น" ด้านบน</span>';
+  document.getElementById('sum-out').value='';
+  document.getElementById('paste-input').value='';
+  document.getElementById('analyze-status').textContent='';
+  document.getElementById('btn-analyze').disabled=true;
+  document.getElementById('btn-sum').disabled=true;
+  document.getElementById('btn-extract-q').disabled=true;
+  clearQuestions();
+  document.getElementById('log-box').style.display='none';
+  document.getElementById('log-box').innerHTML='';
+  clearError();setProgress(0);
+}
+
+function copyTranscript(){
+  if(!finalText.trim()) return;
+  navigator.clipboard.writeText(finalText.trim()).then(()=>{
+    const btn=document.getElementById('btn-copy');
+    btn.innerHTML='<i class="ti ti-check"></i> คัดลอกแล้ว';
+    setTimeout(()=>{btn.innerHTML='<i class="ti ti-copy"></i> คัดลอกข้อความ';},1500);
+  });
+}
+
+let toastTimer=null;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className='toast show';
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>{el.className='toast';},2800);
+}
+
+function setProgress(p){document.getElementById('prog').style.width=p+'%';}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function showError(msg){document.getElementById('error-area').innerHTML=`<div class="err"><i class="ti ti-alert-circle"></i>${esc(msg)}</div>`;}
+function clearError(){document.getElementById('error-area').innerHTML='';}
+
+/* ===== QUESTION EXTRACTION ===== */
+let questionList = [];
+
+const Q_PROMPT = (text) => `คุณเป็นผู้เชี่ยวชาญวิเคราะห์การประชุมกรรมาธิการรัฐสภาไทย\n\nอ่านข้อความด้านล่าง แล้วสกัด "ประเด็นที่ต้องการคำตอบ" ทุกรูปแบบ:\n\nรูปแบบที่ต้องสกัด:\n1. ประโยคคำถามตรง เช่น มีแผนอย่างไร? ทำไมถึง...?\n2. ประโยคขอข้อมูล เช่น ขอทราบว่า... ขอให้ชี้แจง... ขอให้รายงาน...\n3. ประโยคตั้งข้อสังเกต/ข้อกังวล ที่นัยว่าต้องการคำตอบ เช่น ยังไม่เห็นว่า... ยังไม่มีแผน... ไม่ทราบว่า...\n4. ประโยคบอกเล่าที่แฝงประเด็น เช่น งบประมาณส่วนนี้... โครงการนี้ยังไม่ชัดเจน...\n5. ประโยคเสนอ/แนะนำที่ต้องการการยืนยัน เช่น ควรจะ... น่าจะต้อง...\n\nกฎ:\n- แปลงทุกประโยคให้เป็นคำถามที่ชัดเจน กระชับ ไม่เกิน 1-2 บรรทัด\n- ถ้าประโยคเดิมไม่ใช่คำถาม ให้เขียนใหม่เป็นคำถามที่สื่อความหมายเดิม\n- ถ้าไม่พบประเด็นใดเลย ตอบว่า ไม่พบประเด็นที่ต้องการคำตอบ\n- ตอบเป็นตัวเลขข้อ 1. 2. 3. เท่านั้น ห้ามอธิบายเพิ่ม\n\nข้อความจากการประชุม:\n${text}`;
+
+function extractQuestions() {
+  const manual = document.getElementById('manual-input').value.trim();
+  const combined = (finalText + (manual ? '\n' + manual : '')).trim();
+  if (!combined) { showError('ยังไม่มีข้อความ'); return; }
+
+  const prompt = Q_PROMPT(combined);
+  navigator.clipboard.writeText(prompt).catch(() => {});
+  const encoded = encodeURIComponent(prompt);
+  window.open('https://claude.ai/new?q=' + encoded, '_blank');
+
+  const btn = document.getElementById('btn-extract-q');
+  btn.innerHTML = '<i class="ti ti-check"></i> Claude.ai เปิดแล้ว!';
+  setTimeout(() => { btn.innerHTML = '<i class="ti ti-sparkles"></i> สกัดประเด็น → Claude.ai'; }, 3000);
+  toast('✓ Claude.ai เปิดแล้ว — วางผลในช่อง "วางผลที่นี่"');
+  setProgress(80); setTimeout(() => setProgress(0), 1500);
+}
+
+function pasteQuestions() {
+  const area = document.getElementById('q-paste-area');
+  area.style.display = area.style.display === 'none' ? 'block' : 'none';
+  if (area.style.display === 'block') {
+    setTimeout(() => document.getElementById('q-paste-input').focus(), 100);
+  }
+}
+
+function applyQuestions() {
+  const txt = document.getElementById('q-paste-input').value.trim();
+  if (!txt) return;
+
+  // Parse numbered list
+  questionList = [];
+  const lines = txt.split('\n');
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t) continue;
+    // Remove numbering prefix
+    const clean = t.replace(/^\d+[.):\s]+/, '').trim();
+    if (clean && clean.length > 3) questionList.push(clean);
+  }
+
+  renderQuestions();
+  document.getElementById('q-paste-input').value = '';
+  document.getElementById('q-paste-area').style.display = 'none';
+  document.getElementById('btn-copy-q').style.display = 'inline-flex';
+  toast('✓ แสดงคำถามแล้ว ' + questionList.length + ' ข้อ');
+}
+
+function renderQuestions() {
+  const list = document.getElementById('q-list');
+  const empty = document.getElementById('q-empty');
+  const count = document.getElementById('q-count');
+
+  if (questionList.length === 0) {
+    list.innerHTML = '<div class="q-empty" id="q-empty">ไม่พบคำถามในข้อความ</div>';
+    count.textContent = '';
+    return;
+  }
+
+  count.textContent = questionList.length + ' คำถาม';
+  list.innerHTML = questionList.map((q, i) =>
+    `<div class="q-item">
+      <span class="q-num">${i+1}.</span>
+      <span>${esc(q)}</span>
+    </div>`
+  ).join('');
+}
+
+function copyQuestions() {
+  if (!questionList.length) return;
+  const txt = questionList.map((q, i) => (i+1) + '. ' + q).join('\n');
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = document.getElementById('btn-copy-q');
+    btn.innerHTML = '<i class="ti ti-check"></i> คัดลอกแล้ว';
+    setTimeout(() => { btn.innerHTML = '<i class="ti ti-copy"></i> คัดลอกคำถาม'; }, 1500);
+  });
+}
+
+function clearQuestions() {
+  questionList = [];
+  document.getElementById('q-list').innerHTML = '<div class="q-empty" id="q-empty">กด "สกัดประเด็น → Claude.ai" เพื่อดึงคำถาม/ประเด็นทุกรูปแบบจากข้อความ</div>';
+  document.getElementById('q-count').textContent = '';
+  document.getElementById('btn-copy-q').style.display = 'none';
+  document.getElementById('q-paste-area').style.display = 'none';
+  document.getElementById('q-paste-input').value = '';
+}
+
+</script>
+</body>
+</html>
